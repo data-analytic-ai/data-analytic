@@ -41,9 +41,6 @@ public class DatabaseServiceImpl implements DatabaseService {
     // Mapa para almacenar las conexiones por userId
     private final Map<String, JdbcTemplate> userConnections = new ConcurrentHashMap<>();
 
-    // Variable para almacenar la última solicitud de conexión de base de datos
-    private DatabaseConnectionRequest databaseConnectionRequest;
-
     @Override
     public ResponseEntity<String> setDatabaseConnection(DatabaseConnectionRequest databaseConnectionRequest, HttpSession session) {
         // Validate the provided credentials
@@ -70,14 +67,10 @@ public class DatabaseServiceImpl implements DatabaseService {
             // Store the JdbcTemplate and connection request in the session
             session.setAttribute(SESSION_ATTRIBUTE_CONNECTION, jdbcTemplate);
             session.setAttribute("databaseConnectionRequest", databaseConnectionRequest);
-
-            // Update the instance variable
-            this.databaseConnectionRequest = databaseConnectionRequest;
-
             return ResponseEntity.ok("Connected successfully to database: " + databaseConnectionRequest.getDatabaseName());
         } catch (Exception e) {
             log.error("Error connecting to the database", e);
-            return handleException(e, "Error connecting to the database.");
+            return handleException(e);
         }
     }
 
@@ -85,7 +78,7 @@ public class DatabaseServiceImpl implements DatabaseService {
     public ResponseEntity<List<String>> listTables(HttpSession session) {
         JdbcTemplate jdbcTemplate = getJdbcTemplateFromSession(session);
 
-        if (!isDatabaseConnectionConfigured(jdbcTemplate)) {
+        if (isDatabaseConnectionConfigured(jdbcTemplate)) {
             return handleMissingCredentialsForList();
         }
 
@@ -103,13 +96,13 @@ public class DatabaseServiceImpl implements DatabaseService {
     public ResponseEntity<List<Map<String, Object>>> listColumns(String tableName, HttpSession session) {
         JdbcTemplate jdbcTemplate = getJdbcTemplateFromSession(session);
 
-        if (!isDatabaseConnectionConfigured(jdbcTemplate)) {
+        if (isDatabaseConnectionConfigured(jdbcTemplate)) {
             return handleMissingCredentialsForListMap();
         }
 
         try {
             // Validate table name
-            if (!isValidIdentifier(tableName)) {
+            if (isValidIdentifier(tableName)) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
             }
 
@@ -128,13 +121,13 @@ public class DatabaseServiceImpl implements DatabaseService {
     public ResponseEntity<Map<String, Object>> getTableData(String tableName, int page, int size, HttpSession session) {
         JdbcTemplate jdbcTemplate = getJdbcTemplateFromSession(session);
 
-        if (!isDatabaseConnectionConfigured(jdbcTemplate)) {
+        if (isDatabaseConnectionConfigured(jdbcTemplate)) {
             return handleMissingCredentialsForMap();
         }
 
         try {
             // Validate table name
-            if (!isValidIdentifier(tableName)) {
+            if (isValidIdentifier(tableName)) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
             }
 
@@ -166,7 +159,7 @@ public class DatabaseServiceImpl implements DatabaseService {
     public ResponseEntity<List<Map<String, Object>>> executeQuery(String query, HttpSession session) {
         JdbcTemplate jdbcTemplate = getJdbcTemplateFromSession(session);
 
-        if (!isDatabaseConnectionConfigured(jdbcTemplate)) {
+        if (isDatabaseConnectionConfigured(jdbcTemplate)) {
             return handleMissingCredentialsForListMap();
         }
 
@@ -198,7 +191,7 @@ public class DatabaseServiceImpl implements DatabaseService {
     }
 
     private boolean isDatabaseConnectionConfigured(JdbcTemplate jdbcTemplate) {
-        return jdbcTemplate != null;
+        return jdbcTemplate == null;
     }
 
     /**
@@ -223,7 +216,7 @@ public class DatabaseServiceImpl implements DatabaseService {
      * @return True if the identifier is valid, false otherwise.
      */
     private boolean isValidIdentifier(String identifier) {
-        return identifier != null && identifier.matches("^[a-zA-Z0-9_]+$");
+        return identifier == null || !identifier.matches("^[a-zA-Z0-9_]+$");
     }
 
     private boolean isValidQuery(String query) {
@@ -231,8 +224,8 @@ public class DatabaseServiceImpl implements DatabaseService {
         return Pattern.matches(sqlPattern, query);
     }
 
-    private <T> ResponseEntity<T> handleException(Exception e, String message) {
-        log.error(message, e);
+    private <T> ResponseEntity<T> handleException(Exception e) {
+        log.error("Error connecting to the database.", e);
         if ("prod".equals(environment.getProperty("spring.profiles.active"))) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         } else {
