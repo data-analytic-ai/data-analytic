@@ -10,7 +10,7 @@ COPY . .
 RUN mvn clean install
 
 # Etapa 2: Imagen ligera para ejecución
-FROM eclipse-temurin:17-jre-slim
+FROM eclipse-temurin:17-jdk-slim
 
 WORKDIR /app
 
