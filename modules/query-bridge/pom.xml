@@ -136,12 +136,6 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>ai.dataanalytic</groupId>
-            <artifactId>data-bridge</artifactId>
-            <version>1.0.0</version>
-            <scope>compile</scope>
-        </dependency>
 
         <!-- Starter de seguridad de Spring Boot -->
         <dependency>
