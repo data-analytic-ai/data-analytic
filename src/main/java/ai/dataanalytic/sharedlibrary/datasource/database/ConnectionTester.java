@@ -1,8 +1,8 @@
 package ai.dataanalytic.sharedlibrary.datasource.database;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
-import lombok.extern.slf4j.Slf4j;
 
 @Component
 @Slf4j
