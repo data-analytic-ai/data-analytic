@@ -15,6 +15,7 @@
     <artifactId>query-bridge</artifactId>
     <name>QueryBridge</name>
     <description>QueryBridge Module</description>
+    <version>1.0.0</version>
 
     <properties>
         <!-- Versiones específicas para Spring y Spring Security -->
