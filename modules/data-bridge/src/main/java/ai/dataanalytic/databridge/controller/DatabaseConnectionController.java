@@ -1,3 +1,4 @@
+/*
 package ai.dataanalytic.databridge.controller;
 
 import ai.dataanalytic.databridge.service.QueryBridgeDatabaseClient;
@@ -25,3 +26,4 @@ public class DatabaseConnectionController {
 
 
 }
+*/
