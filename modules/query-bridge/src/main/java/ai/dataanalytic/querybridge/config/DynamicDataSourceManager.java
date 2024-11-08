@@ -5,28 +5,29 @@ import ai.dataanalytic.sharedlibrary.dto.DatabaseConnectionRequest;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 import javax.sql.DataSource;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Service class to manage dynamic data sources.
  */
 @Slf4j
 @Service
+@Configuration
 public class DynamicDataSourceManager {
 
-    // Cache to store JdbcTemplate instances by session ID
-    private final Map<String, JdbcTemplate> dataSourceCache = new ConcurrentHashMap<>();
 
     // Database drivers
     private static final Map<String, String> DRIVER_MAP = Map.of(
             "postgresql", "org.postgresql.Driver",
             "mysql", "com.mysql.cj.jdbc.Driver",
-            "mongodb", "org.mongodb.driver"
+            "sqlserver", "com.microsoft.sqlserver.jdbc.SQLServerDriver",
+            "oracle", "oracle.jdbc.driver.OracleDriver",
+            "db2", "com.ibm.db2.jcc.DB2Driver"
     );
 
     /**
@@ -92,7 +93,7 @@ public class DynamicDataSourceManager {
         hikariConfig.setPassword(credentials.getPassword());
 
         // Optional: Configure pool settings
-        hikariConfig.setMaximumPoolSize(10);
+        hikariConfig.setMaximumPoolSize(20);
         hikariConfig.setConnectionTimeout(30000);
 
         return new HikariDataSource(hikariConfig);
@@ -110,20 +111,19 @@ public class DynamicDataSourceManager {
         int port = credentials.getPort();
         String databaseName = credentials.getDatabaseName();
 
-        switch (databaseType) {
-            case "postgresql":
-                return String.format("jdbc:postgresql://%s:%d/%s", host, port, databaseName);
-            case "mysql":
-                return String.format("jdbc:mysql://%s:%d/%s", host, port, databaseName);
-            case "sqlserver":
-                return String.format("jdbc:sqlserver://%s:%d;databaseName=%s", host, port, databaseName);
-            case "oracle":
-                // For Oracle, additional parameters like SID or service name might be needed
-                return String.format("jdbc:oracle:thin:@%s:%d:%s", host, port, credentials.getSid());
-            // Add more cases as needed
-            default:
-                throw new IllegalArgumentException("Unsupported database type: " + databaseType);
-        }
+        return switch (databaseType) {
+            case "postgresql" -> String.format("jdbc:postgresql://%s:%d/%s", host, port, databaseName);
+            case "mysql" -> String.format("jdbc:mysql://%s:%d/%s", host, port, databaseName);
+            case "sqlserver" -> String.format("jdbc:sqlserver://%s:%d;databaseName=%s", host, port, databaseName);
+            case "oracle" -> {
+                String sidOrService = credentials.getSid();
+                if (sidOrService == null || sidOrService.isEmpty()) {
+                    throw new IllegalArgumentException("SID or Service Name is required for Oracle connections.");
+                }
+                yield String.format("jdbc:oracle:thin:@%s:%d:%s", host, port, sidOrService);
+            }
+            default -> throw new IllegalArgumentException("Unsupported database type: " + databaseType);
+        };
     }
 
     /**
