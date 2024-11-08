@@ -16,19 +16,9 @@ public class DataSourceValidator {
     @Qualifier("dataSource")
     private DataSource dataSource;
 
-    @Autowired
-    @Qualifier("sourceDataSource")
-    private DataSource sourceDataSource;
-
-    @Autowired
-    @Qualifier("destinationDataSource")
-    private DataSource destinationDataSource;
-
     @PostConstruct
     public void validateDataSources() {
         validateDataSource(dataSource, "dataSource");
-        validateDataSource(sourceDataSource, "sourceDataSource");
-        validateDataSource(destinationDataSource, "destinationDataSource");
     }
 
     private void validateDataSource(DataSource dataSource, String name) {
