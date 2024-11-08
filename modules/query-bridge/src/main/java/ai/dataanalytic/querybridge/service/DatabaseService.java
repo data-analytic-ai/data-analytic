@@ -4,6 +4,7 @@ package ai.dataanalytic.querybridge.service;
 import ai.dataanalytic.sharedlibrary.dto.DatabaseConnectionRequest;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.http.ResponseEntity;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -15,9 +16,10 @@ import java.util.Map;
 @Service
 public interface DatabaseService {
     ResponseEntity<String> setDatabaseConnection(DatabaseConnectionRequest databaseConnectionRequest, HttpSession session);
-    ResponseEntity<List<String>> listTables(HttpSession session);
-    ResponseEntity<List<Map<String, Object>>> listColumns(String tableName, HttpSession session);
-    ResponseEntity<Map<String, Object>> getTableData(String tableName, int page, int size, HttpSession session);
-    ResponseEntity<List<Map<String, Object>>> executeQuery(String query, HttpSession session);
+    ResponseEntity<List<String>> listTables(HttpSession session, String connectionId);
+    ResponseEntity<List<Map<String, Object>>> listColumns(String tableName, HttpSession session, String connectionId);
+    ResponseEntity<Map<String, Object>> getTableData(String tableName, int page, int size, HttpSession session, String connectionId);
+    ResponseEntity<List<Map<String, Object>>> executeQuery(String query, HttpSession session, String connectionId);
+    JdbcTemplate getJdbcTemplateFromSession(HttpSession session, String connectionId);
 }
 
