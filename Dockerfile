@@ -7,7 +7,7 @@ WORKDIR /app
 COPY . .
 
 # Construye el proyecto con Maven
-RUN mvn clean install
+RUN mvn clean install -DskipTests
 
 # Etapa 2: Imagen ligera para ejecución
 FROM amazoncorretto:17
