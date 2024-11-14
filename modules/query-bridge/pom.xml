@@ -116,6 +116,13 @@
             <artifactId>mysql-connector-j</artifactId>
         </dependency>
 
+        <!-- Conector MongoDB -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-mongodb</artifactId>
+            <version>3.3.5</version>
+        </dependency>
+
         <!-- Lombok para reducir código boilerplate -->
         <dependency>
             <groupId>org.projectlombok</groupId>
