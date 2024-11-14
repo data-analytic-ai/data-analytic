@@ -15,6 +15,7 @@
     <artifactId>query-bridge</artifactId>
     <name>QueryBridge</name>
     <description>QueryBridge Module</description>
+    <version>1.0.0</version>
 
     <properties>
         <!-- Versiones específicas para Spring y Spring Security -->
@@ -115,6 +116,13 @@
             <artifactId>mysql-connector-j</artifactId>
         </dependency>
 
+        <!-- Conector MongoDB -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-mongodb</artifactId>
+            <version>3.3.5</version>
+        </dependency>
+
         <!-- Lombok para reducir código boilerplate -->
         <dependency>
             <groupId>org.projectlombok</groupId>
@@ -135,12 +143,6 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>ai.dataanalytic</groupId>
-            <artifactId>data-bridge</artifactId>
-            <version>1.0.0</version>
-            <scope>compile</scope>
         </dependency>
 
         <!-- Starter de seguridad de Spring Boot -->

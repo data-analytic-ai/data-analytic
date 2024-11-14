@@ -1,6 +1,7 @@
 package ai.dataanalytic.querybridge.service;
 
 import ai.dataanalytic.querybridge.config.DynamicDataSourceManager;
+import ai.dataanalytic.querybridge.dto.ConnectionEntity;
 import ai.dataanalytic.querybridge.dto.DynamicTableData;
 import ai.dataanalytic.sharedlibrary.dto.DatabaseConnectionRequest;
 import ai.dataanalytic.sharedlibrary.util.StringUtils;
@@ -36,10 +37,16 @@ public class DatabaseServiceImpl implements DatabaseService {
     @Autowired
     private Environment environment;
 
+    @Autowired
+    private ConnectionRepository connectionRepository;
+
     private static final String SESSION_ATTRIBUTE_CONNECTION = "dbConnection";
 
     // Mapa para almacenar las conexiones por userId
-    private final Map<String, JdbcTemplate> userConnections = new ConcurrentHashMap<>();
+    private final Map<String, Map<String, JdbcTemplate>> userConnections = new ConcurrentHashMap<>();
+
+
+
 
     @Override
     public ResponseEntity<String> setDatabaseConnection(DatabaseConnectionRequest databaseConnectionRequest, HttpSession session) {
@@ -49,10 +56,12 @@ public class DatabaseServiceImpl implements DatabaseService {
         }
 
         try {
-            // Try to create and test a database connection with the provided credentials.
+            // Create and test the database connection
             JdbcTemplate jdbcTemplate = dynamicDataSourceManager.createAndTestConnection(databaseConnectionRequest);
 
+            // Get the user ID from the session
             String userId = getUserIdFromSession(session);
+            log.info("User ID: {}", userId);
             if (userId == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authenticated");
             }
@@ -61,12 +70,34 @@ public class DatabaseServiceImpl implements DatabaseService {
                 return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to connect to database");
             }
 
-            // Store the JdbcTemplate in a map keyed by userId
-            userConnections.put(userId, jdbcTemplate);
+            // Get or create the user's connections map
+            Map<String, JdbcTemplate> connections = userConnections.computeIfAbsent(userId, k -> new ConcurrentHashMap<>());
 
-            // Store the JdbcTemplate and connection request in the session
-            session.setAttribute(SESSION_ATTRIBUTE_CONNECTION, jdbcTemplate);
-            session.setAttribute("databaseConnectionRequest", databaseConnectionRequest);
+            // Store the JdbcTemplate with the provided connectionId
+            String connectionId = databaseConnectionRequest.getConnectionId();
+            if (connectionId == null || connectionId.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Connection ID is required");
+            }
+            connections.put(connectionId, jdbcTemplate);
+
+            // Store the connections map in the session
+            session.setAttribute("dbConnections", connections);
+
+            // Guardar los detalles de la conexión en MongoDB
+            ConnectionEntity connectionEntity = new ConnectionEntity();
+            connectionEntity.setUserId(userId);
+            connectionEntity.setConnectionId(connectionId);
+            connectionEntity.setDatabaseType(databaseConnectionRequest.getDatabaseType());
+            connectionEntity.setHost(databaseConnectionRequest.getHost());
+            connectionEntity.setPort(databaseConnectionRequest.getPort());
+            connectionEntity.setDatabaseName(databaseConnectionRequest.getDatabaseName());
+            connectionEntity.setUserName(databaseConnectionRequest.getUserName());
+            connectionEntity.setPassword(databaseConnectionRequest.getPassword()); // Considera cifrar
+            connectionEntity.setSid(databaseConnectionRequest.getSid());
+            connectionEntity.setInstance(databaseConnectionRequest.getInstance());
+
+            connectionRepository.save(connectionEntity);
+
             return ResponseEntity.ok("Connected successfully to database: " + databaseConnectionRequest.getDatabaseName());
         } catch (Exception e) {
             log.error("Error connecting to the database", e);
@@ -75,10 +106,10 @@ public class DatabaseServiceImpl implements DatabaseService {
     }
 
     @Override
-    public ResponseEntity<List<String>> listTables(HttpSession session) {
-        JdbcTemplate jdbcTemplate = getJdbcTemplateFromSession(session);
+    public ResponseEntity<List<String>> listTables(HttpSession session, String connectionId) {
+        JdbcTemplate jdbcTemplate = getJdbcTemplateFromSession(session, connectionId);
 
-        if (isDatabaseConnectionConfigured(jdbcTemplate)) {
+        if (jdbcTemplate == null) {
             return handleMissingCredentialsForList();
         }
 
@@ -93,16 +124,16 @@ public class DatabaseServiceImpl implements DatabaseService {
     }
 
     @Override
-    public ResponseEntity<List<Map<String, Object>>> listColumns(String tableName, HttpSession session) {
-        JdbcTemplate jdbcTemplate = getJdbcTemplateFromSession(session);
+    public ResponseEntity<List<Map<String, Object>>> listColumns(String tableName, HttpSession session, String connectionId) {
+        JdbcTemplate jdbcTemplate = getJdbcTemplateFromSession(session, connectionId);
 
-        if (isDatabaseConnectionConfigured(jdbcTemplate)) {
+        if (jdbcTemplate == null) {
             return handleMissingCredentialsForListMap();
         }
 
         try {
             // Validate table name
-            if (isValidIdentifier(tableName)) {
+            if (!isValidIdentifier(tableName)) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
             }
 
@@ -117,23 +148,23 @@ public class DatabaseServiceImpl implements DatabaseService {
         }
     }
 
-    @Override
-    public ResponseEntity<Map<String, Object>> getTableData(String tableName, int page, int size, HttpSession session) {
-        JdbcTemplate jdbcTemplate = getJdbcTemplateFromSession(session);
 
-        if (isDatabaseConnectionConfigured(jdbcTemplate)) {
+    @Override
+    public ResponseEntity<Map<String, Object>> getTableData(String tableName, int page, int size, HttpSession session, String connectionId) {
+        JdbcTemplate jdbcTemplate = getJdbcTemplateFromSession(session, connectionId);
+
+        if (jdbcTemplate == null) {
             return handleMissingCredentialsForMap();
         }
 
         try {
             // Validate table name
-            if (isValidIdentifier(tableName)) {
+            if (!isValidIdentifier(tableName)) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
             }
 
             // Retrieve table data with pagination
-            ResponseEntity<DynamicTableData> responseEntity = schemaDiscoveryService.getTableDataWithPagination(tableName, jdbcTemplate, page, size);
-            DynamicTableData tableData = responseEntity.getBody();
+            DynamicTableData tableData = schemaDiscoveryService.getTableDataWithPagination(tableName, jdbcTemplate, page, size).getBody();
 
             if (tableData == null) {
                 return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
@@ -155,11 +186,12 @@ public class DatabaseServiceImpl implements DatabaseService {
         }
     }
 
-    @Override
-    public ResponseEntity<List<Map<String, Object>>> executeQuery(String query, HttpSession session) {
-        JdbcTemplate jdbcTemplate = getJdbcTemplateFromSession(session);
 
-        if (isDatabaseConnectionConfigured(jdbcTemplate)) {
+    @Override
+    public ResponseEntity<List<Map<String, Object>>> executeQuery(String query, HttpSession session , String connectionId) {
+        JdbcTemplate jdbcTemplate = getJdbcTemplateFromSession(session, connectionId);
+
+        if (jdbcTemplate == null) {
             return handleMissingCredentialsForListMap();
         }
 
@@ -177,21 +209,48 @@ public class DatabaseServiceImpl implements DatabaseService {
         }
     }
 
+
     // Helper method to get JdbcTemplate from session
-    private JdbcTemplate getJdbcTemplateFromSession(HttpSession session) {
+    public JdbcTemplate getJdbcTemplateFromSession(HttpSession session, String connectionId) {
         String userId = getUserIdFromSession(session);
         if (userId == null) {
             return null;
         }
-        return userConnections.get(userId);
+        Map<String, JdbcTemplate> connections = userConnections.get(userId);
+        if (connections == null) {
+            connections = new ConcurrentHashMap<>();
+            userConnections.put(userId, connections);
+        }
+        JdbcTemplate jdbcTemplate = connections.get(connectionId);
+        if (jdbcTemplate == null) {
+            // Intentar recuperar la conexión desde MongoDB
+            ConnectionEntity connectionEntity = connectionRepository.findByUserIdAndConnectionId(userId, connectionId);
+            if (connectionEntity != null) {
+                // Reconstruir DatabaseConnectionRequest
+                DatabaseConnectionRequest dbRequest = new DatabaseConnectionRequest();
+                dbRequest.setDatabaseType(connectionEntity.getDatabaseType());
+                dbRequest.setHost(connectionEntity.getHost());
+                dbRequest.setPort(connectionEntity.getPort());
+                dbRequest.setDatabaseName(connectionEntity.getDatabaseName());
+                dbRequest.setUserName(connectionEntity.getUserName());
+                dbRequest.setPassword(connectionEntity.getPassword()); //TODO:  cifrar/descifrar the password
+                dbRequest.setSid(connectionEntity.getSid());
+                dbRequest.setInstance(connectionEntity.getInstance());
+                dbRequest.setConnectionId(connectionId);
+
+                // Crear y probar la conexión
+                jdbcTemplate = dynamicDataSourceManager.createAndTestConnection(dbRequest);
+                if (jdbcTemplate != null) {
+                    connections.put(connectionId, jdbcTemplate);
+                }
+            }
+        }
+        return jdbcTemplate;
     }
 
-    private String getUserIdFromSession(HttpSession session) {
+
+    public String getUserIdFromSession(HttpSession session) {
         return (String) session.getAttribute("userId");
-    }
-
-    private boolean isDatabaseConnectionConfigured(JdbcTemplate jdbcTemplate) {
-        return jdbcTemplate == null;
     }
 
     /**
@@ -216,7 +275,7 @@ public class DatabaseServiceImpl implements DatabaseService {
      * @return True if the identifier is valid, false otherwise.
      */
     private boolean isValidIdentifier(String identifier) {
-        return identifier == null || !identifier.matches("^[a-zA-Z0-9_]+$");
+        return identifier != null && identifier.matches("^[a-zA-Z0-9_]+$");
     }
 
     private boolean isValidQuery(String query) {

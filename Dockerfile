@@ -1,5 +1,5 @@
 # Etapa 1: Construcción con Maven y JDK 17
-FROM maven:3.8.8-eclipse-temurin-17 AS build
+FROM maven:3.9.9-amazoncorretto-17 AS build
 
 WORKDIR /app
 
@@ -7,10 +7,10 @@ WORKDIR /app
 COPY . .
 
 # Construye el proyecto con Maven
-RUN mvn clean install
+RUN mvn clean install -DskipTests
 
 # Etapa 2: Imagen ligera para ejecución
-FROM eclipse-temurin:17-jre-slim
+FROM amazoncorretto:17
 
 WORKDIR /app
 

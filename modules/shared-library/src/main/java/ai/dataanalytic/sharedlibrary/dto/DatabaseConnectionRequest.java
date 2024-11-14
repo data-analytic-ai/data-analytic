@@ -12,4 +12,5 @@ public class DatabaseConnectionRequest {
     private String password;      // e.g., toor
     private String sid;          // e.g., ORCL
     private String instance;    // e.g., SQL-Server
+    private String connectionId;
 }
