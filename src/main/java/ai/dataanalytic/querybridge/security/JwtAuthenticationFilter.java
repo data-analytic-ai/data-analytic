@@ -1,5 +1,3 @@
-// JwtAuthenticationFilter.java
-
 package ai.dataanalytic.querybridge.security;
 
 import io.jsonwebtoken.Claims;
@@ -52,9 +50,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         .getBody();
                 log.info("Claims: {}", claims);
 
+
+
                 // Obtener información del usuario
                 String userId = claims.getSubject();
                 log.info("User ID: {}", userId);
+
+                if (userId != null) {
+                    // Establece el userId en la sesión
+                    request.getSession().setAttribute("userId", userId);
+                }
 
                 // Crear objeto de autenticación
                 UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(

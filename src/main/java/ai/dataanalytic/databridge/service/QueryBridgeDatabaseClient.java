@@ -1,3 +1,4 @@
+/*
 package ai.dataanalytic.databridge.service;
 
 import ai.dataanalytic.databridge.dto.DatabaseConnectionRequest;
@@ -26,3 +27,4 @@ public class QueryBridgeDatabaseClient {
         log.info("Database connection established successfully");
     }
 }
+*/
