@@ -21,5 +21,6 @@ public interface DatabaseService {
     ResponseEntity<Map<String, Object>> getTableData(String tableName, int page, int size, HttpSession session, String connectionId);
     ResponseEntity<List<Map<String, Object>>> executeQuery(String query, HttpSession session, String connectionId);
     JdbcTemplate getJdbcTemplateFromSession(HttpSession session, String connectionId);
+    String getUserIdFromSession(HttpSession session);
 }
 
