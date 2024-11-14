@@ -1,10 +1,13 @@
 package ai.dataanalytic.querybridge.controller;
 
+import ai.dataanalytic.querybridge.dto.ConnectionEntity;
+import ai.dataanalytic.querybridge.service.ConnectionRepository;
 import ai.dataanalytic.querybridge.service.DatabaseService;
 import ai.dataanalytic.sharedlibrary.dto.DatabaseConnectionRequest;
 import jakarta.servlet.http.HttpSession;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,6 +25,11 @@ public class DatabaseNavigatorController {
 
     @Autowired
     private DatabaseService databaseService;
+
+    @Autowired
+    private ConnectionRepository connectionRepository;
+
+
 
     /**
      * Connects to the database using dynamic data sources.
@@ -82,5 +90,28 @@ public class DatabaseNavigatorController {
             HttpSession session
             ) {
         return databaseService.getTableData(tableName, page, size, session, connectionId);
+    }
+
+    @GetMapping("/connections")
+    public ResponseEntity<List<ConnectionEntity>> getUserConnections(HttpSession session) {
+        String userId = String.valueOf(databaseService.getUserIdFromSession(session));
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
+        }
+        List<ConnectionEntity> connections = connectionRepository.findByUserId(userId);
+        return ResponseEntity.ok(connections);
+    }
+
+    @GetMapping("/connection/{connectionId}")
+    public ResponseEntity<ConnectionEntity> getConnectionDetails(@PathVariable("connectionId") String connectionId, HttpSession session) {
+        String userId = databaseService.getUserIdFromSession(session);
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
+        }
+        ConnectionEntity connection = connectionRepository.findByUserIdAndConnectionId(userId, connectionId);
+        if (connection == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+        }
+        return ResponseEntity.ok(connection);
     }
 }
