@@ -1,6 +1,7 @@
 package ai.dataanalytic.querybridge.service;
 
 import ai.dataanalytic.querybridge.config.DynamicDataSourceManager;
+import ai.dataanalytic.querybridge.dto.ConnectionEntity;
 import ai.dataanalytic.querybridge.dto.DynamicTableData;
 import ai.dataanalytic.sharedlibrary.dto.DatabaseConnectionRequest;
 import ai.dataanalytic.sharedlibrary.util.StringUtils;
@@ -35,6 +36,9 @@ public class DatabaseServiceImpl implements DatabaseService {
 
     @Autowired
     private Environment environment;
+
+    @Autowired
+    private ConnectionRepository connectionRepository;
 
     private static final String SESSION_ATTRIBUTE_CONNECTION = "dbConnection";
 
@@ -78,6 +82,21 @@ public class DatabaseServiceImpl implements DatabaseService {
 
             // Store the connections map in the session
             session.setAttribute("dbConnections", connections);
+
+            // Guardar los detalles de la conexión en MongoDB
+            ConnectionEntity connectionEntity = new ConnectionEntity();
+            connectionEntity.setUserId(userId);
+            connectionEntity.setConnectionId(connectionId);
+            connectionEntity.setDatabaseType(databaseConnectionRequest.getDatabaseType());
+            connectionEntity.setHost(databaseConnectionRequest.getHost());
+            connectionEntity.setPort(databaseConnectionRequest.getPort());
+            connectionEntity.setDatabaseName(databaseConnectionRequest.getDatabaseName());
+            connectionEntity.setUserName(databaseConnectionRequest.getUserName());
+            connectionEntity.setPassword(databaseConnectionRequest.getPassword()); // Considera cifrar
+            connectionEntity.setSid(databaseConnectionRequest.getSid());
+            connectionEntity.setInstance(databaseConnectionRequest.getInstance());
+
+            connectionRepository.save(connectionEntity);
 
             return ResponseEntity.ok("Connected successfully to database: " + databaseConnectionRequest.getDatabaseName());
         } catch (Exception e) {
@@ -199,12 +218,38 @@ public class DatabaseServiceImpl implements DatabaseService {
         }
         Map<String, JdbcTemplate> connections = userConnections.get(userId);
         if (connections == null) {
-            return null;
+            connections = new ConcurrentHashMap<>();
+            userConnections.put(userId, connections);
         }
-        return connections.get(connectionId);
+        JdbcTemplate jdbcTemplate = connections.get(connectionId);
+        if (jdbcTemplate == null) {
+            // Intentar recuperar la conexión desde MongoDB
+            ConnectionEntity connectionEntity = connectionRepository.findByUserIdAndConnectionId(userId, connectionId);
+            if (connectionEntity != null) {
+                // Reconstruir DatabaseConnectionRequest
+                DatabaseConnectionRequest dbRequest = new DatabaseConnectionRequest();
+                dbRequest.setDatabaseType(connectionEntity.getDatabaseType());
+                dbRequest.setHost(connectionEntity.getHost());
+                dbRequest.setPort(connectionEntity.getPort());
+                dbRequest.setDatabaseName(connectionEntity.getDatabaseName());
+                dbRequest.setUserName(connectionEntity.getUserName());
+                dbRequest.setPassword(connectionEntity.getPassword()); //TODO:  cifrar/descifrar the password
+                dbRequest.setSid(connectionEntity.getSid());
+                dbRequest.setInstance(connectionEntity.getInstance());
+                dbRequest.setConnectionId(connectionId);
+
+                // Crear y probar la conexión
+                jdbcTemplate = dynamicDataSourceManager.createAndTestConnection(dbRequest);
+                if (jdbcTemplate != null) {
+                    connections.put(connectionId, jdbcTemplate);
+                }
+            }
+        }
+        return jdbcTemplate;
     }
 
-    private String getUserIdFromSession(HttpSession session) {
+
+    public String getUserIdFromSession(HttpSession session) {
         return (String) session.getAttribute("userId");
     }
 
