@@ -6,22 +6,19 @@ WORKDIR /app
 # Copia el código fuente al contenedor
 COPY . .
 
-# Construye el proyecto con Maven, ignorando las pruebas
-RUN mvn clean install -DskipTests
+# Construye el proyecto con Maven (asegúrate de que genere un único .jar en target/)
+RUN mvn clean package -DskipTests
 
 # Etapa 2: Imagen ligera para ejecución
 FROM amazoncorretto:17
 
 WORKDIR /app
 
-# Copia los JARs generados desde la etapa de construcción
-COPY --from=build /app/modules/query-bridge/target/query-bridge-1.0.0.jar /app/query-bridge.jar
-COPY --from=build /app/modules/data-bridge/target/data-bridge-1.0.0.jar /app/data-bridge.jar
-COPY --from=build /app/modules/shared-library/target/shared-library-1.0.0.jar /app/shared-library.jar
+# Copia el JAR generado desde la etapa de construcción
+COPY --from=build /app/target/data-analytic-1.0.0.jar /app/data-analytic.jar
 
-# Expone el puerto en el que correrán las aplicaciones
-EXPOSE 8081
-EXPOSE 8082
+# Expone el puerto en el que correrá la aplicación
+EXPOSE 8080
 
-# Comando para ejecutar el JAR principal (modificar según el JAR principal)
-CMD ["java", "-jar", "/app/data-analytic-1.0.0.jar"]
+# Comando para ejecutar la aplicación
+CMD ["java", "-jar", "/app/data-analytic.jar"]
