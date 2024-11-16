@@ -117,6 +117,13 @@
             <artifactId>mysql-connector-j</artifactId>
         </dependency>
 
+        <!-- Conector MongoDB -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-mongodb</artifactId>
+            <version>3.3.5</version>
+        </dependency>
+
         <!-- Lombok para reducir código boilerplate -->
         <dependency>
             <groupId>org.projectlombok</groupId>
@@ -140,8 +147,6 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
-            <version>3.3.4</version>
-            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.springframework.batch</groupId>
@@ -162,11 +167,50 @@
     <build>
         <pluginManagement>
             <plugins>
+
                 <plugin>
                     <groupId>org.springframework.boot</groupId>
                     <artifactId>spring-boot-maven-plugin</artifactId>
-                    <version>spring.boot.version</version>
+                    <version>3.3.4</version>
+                    <executions>
+                        <execution>
+                            <goals>
+                                <goal>repackage</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+
                 </plugin>
+
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>3.13.0</version>
+                    <configuration>
+                        <source>${java.version}</source>
+                        <target>${java.version}</target>
+                        <release>${java.version}</release>
+                        <compilerArgs>
+                            <arg>-Xlint:unchecked</arg>
+                        </compilerArgs>
+                    </configuration>
+                </plugin>
+
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-jar-plugin</artifactId>
+                    <version>3.3.0</version>
+                    <configuration>
+                        <archive>
+                            <manifest>
+                                <addClasspath>true</addClasspath>
+                                <classpathPrefix>lib/</classpathPrefix>
+                                <mainClass>ai.dataanalytic.DataAnalyticApplication</mainClass>
+                            </manifest>
+                        </archive>
+                    </configuration>
+                </plugin>
+
             </plugins>
         </pluginManagement>
     </build>
