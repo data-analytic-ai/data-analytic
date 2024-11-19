@@ -93,9 +93,9 @@ public class DynamicDataSourceManager {
         hikariConfig.setPassword(credentials.getPassword());
 
         // Optional: Configure pool settings
-        hikariConfig.setMaximumPoolSize(60);
+        hikariConfig.setMaximumPoolSize(1000);
         hikariConfig.setConnectionTimeout(30000);
-        hikariConfig.setIdleTimeout(600000);
+        hikariConfig.setIdleTimeout(30000);
 
         return new HikariDataSource(hikariConfig);
     }
