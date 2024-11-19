@@ -14,11 +14,14 @@ FROM amazoncorretto:17
 
 WORKDIR /app
 
-# Copia el JAR generado desde la etapa de construcción
+# Se Copia el JAR generado desde la etapa de construcción
 COPY --from=build /app/target/data-analytic-1.0.0.jar /app/data-analytic.jar
 
 # Expone el puerto en el que correrá la aplicación
-EXPOSE 8080
+EXPOSE 8081
 
 # Comando para ejecutar la aplicación
-CMD ["java", "-jar", "/app/data-analytic.jar"]
+#CMD ["java", "-jar", "/app/data-analytic.jar"]
+
+# Set the entrypoint to allow passing JVM options and environment variables
+ENTRYPOINT ["java", "-jar", "/app/data-analytic.jar"]
