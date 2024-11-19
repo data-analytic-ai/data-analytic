@@ -3,6 +3,7 @@ package ai.dataanalytic.querybridge.service;
 import ai.dataanalytic.querybridge.config.DynamicDataSourceManager;
 import ai.dataanalytic.querybridge.dto.ConnectionEntity;
 import ai.dataanalytic.querybridge.dto.DynamicTableData;
+import ai.dataanalytic.querybridge.mongodb.repository.ConnectionRepository;
 import ai.dataanalytic.sharedlibrary.dto.DatabaseConnectionRequest;
 import ai.dataanalytic.sharedlibrary.util.StringUtils;
 import jakarta.servlet.http.HttpSession;

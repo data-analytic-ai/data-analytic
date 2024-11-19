@@ -1,7 +1,7 @@
 package ai.dataanalytic.querybridge.controller;
 
 import ai.dataanalytic.querybridge.dto.ConnectionEntity;
-import ai.dataanalytic.querybridge.service.ConnectionRepository;
+import ai.dataanalytic.querybridge.mongodb.repository.ConnectionRepository;
 import ai.dataanalytic.querybridge.service.DatabaseService;
 import ai.dataanalytic.sharedlibrary.dto.DatabaseConnectionRequest;
 import jakarta.servlet.http.HttpSession;

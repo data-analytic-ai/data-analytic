@@ -1,4 +1,4 @@
-package ai.dataanalytic.querybridge.service;
+package ai.dataanalytic.querybridge.mongodb.repository;
 
 import ai.dataanalytic.querybridge.dto.ConnectionEntity;
 import org.springframework.data.mongodb.repository.MongoRepository;
