@@ -39,20 +39,9 @@ public class DatabaseConfiguration extends DefaultBatchConfiguration {
     @Autowired
     private DynamicDataSourceManager dynamicDataSourceManager;
 
-    // Crear el DataSource principal para el repositorio de jobs
     @Bean
-    @Primary
-    @Qualifier("dataSource")
-    @ConfigurationProperties(prefix = "db.job.repo")
-    public DataSource dataSource() {
-        return DataSourceBuilder.create().build();
-    }
-
-    @Bean
-    public PlatformTransactionManager transactionManager(@Qualifier("dataSource") DataSource dataSource) {
-        JdbcTransactionManager transactionManager = new JdbcTransactionManager();
-        transactionManager.setDataSource(dataSource);
-        return transactionManager;
+    public PlatformTransactionManager transactionManager(DataSource dataSource) {
+        return new JdbcTransactionManager(dataSource);
     }
 
     @Bean
