@@ -23,15 +23,18 @@ import java.util.UUID;
 @RequestMapping("/data/bridge")
 public class DataTransferController {
 
-    @Autowired
-    private JobLauncher jobLauncher;
+    private final JobLauncher jobLauncher;
 
-    @Autowired
-    private DatabaseService databaseService;
+    private final DatabaseService databaseService;
 
 
-    @Autowired
-    private Job dataTransferJob;
+    private final Job dataTransferJob;
+
+    public DataTransferController(JobLauncher jobLauncher, DatabaseService databaseService, Job dataTransferJob) {
+        this.jobLauncher = jobLauncher;
+        this.databaseService = databaseService;
+        this.dataTransferJob = dataTransferJob;
+    }
 
     @PostMapping("/transfer")
     public ResponseEntity<String> transferData(@RequestBody DataTransferRequest request, HttpSession session) {
