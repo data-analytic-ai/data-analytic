@@ -17,7 +17,6 @@ import java.util.Map;
  */
 @Slf4j
 @Service
-@Configuration
 public class DynamicDataSourceManager {
 
 
