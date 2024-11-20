@@ -1,8 +1,12 @@
 package ai.dataanalytic.sharedlibrary.dto;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class DatabaseConnectionRequest {
     private String databaseType;  // e.g., postgresql, mysql
     private String host;          // e.g., localhost
