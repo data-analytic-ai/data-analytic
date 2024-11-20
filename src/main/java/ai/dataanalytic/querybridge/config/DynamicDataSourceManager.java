@@ -5,6 +5,7 @@ import ai.dataanalytic.sharedlibrary.dto.DatabaseConnectionRequest;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
@@ -15,7 +16,7 @@ import java.util.Map;
  * Service class to manage dynamic data sources.
  */
 @Slf4j
-@Service
+@Configuration
 public class DynamicDataSourceManager {
 
 
