@@ -35,7 +35,7 @@ public class DatabaseConfiguration extends DefaultBatchConfiguration {
     private DynamicDataSourceManager dynamicDataSourceManager;
 
     @Bean
-    public PlatformTransactionManager transactionManager(DataSource dataSource) {
+    public static PlatformTransactionManager transactionManager(DataSource dataSource) {
         return new JdbcTransactionManager(dataSource);
     }
 
