@@ -4,6 +4,7 @@ import ai.dataanalytic.databridge.service.ConnectionHolder;
 import ai.dataanalytic.querybridge.config.DynamicDataSourceManager;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
+import org.springframework.batch.core.configuration.annotation.EnableBatchProcessing;
 import org.springframework.batch.core.configuration.annotation.JobScope;
 import org.springframework.batch.core.configuration.support.DefaultBatchConfiguration;
 import org.springframework.batch.core.job.builder.JobBuilder;
@@ -29,10 +30,11 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Configuration
-public class DatabaseConfiguration extends DefaultBatchConfiguration {
+@EnableBatchProcessing
+public class DatabaseConfiguration {
 
-    @Autowired
-    private DynamicDataSourceManager dynamicDataSourceManager;
+
+
 
     @Bean
     public static PlatformTransactionManager transactionManager(DataSource dataSource) {

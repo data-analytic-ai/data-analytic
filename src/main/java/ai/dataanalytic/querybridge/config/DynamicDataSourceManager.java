@@ -16,7 +16,7 @@ import java.util.Map;
  * Service class to manage dynamic data sources.
  */
 @Slf4j
-@Configuration
+@Service
 public class DynamicDataSourceManager {
 
 
