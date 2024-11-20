@@ -1,10 +1,12 @@
 package ai.dataanalytic.databridge.service;
 
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Service;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+@Service
 public class ConnectionHolder {
     private static final Map<String, Map<String, JdbcTemplate>> connections = new ConcurrentHashMap<>();
 
