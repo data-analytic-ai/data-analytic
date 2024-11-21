@@ -20,7 +20,7 @@ import java.util.Map;
 @Slf4j
 @RestController
 @RequestMapping("/query/bridge/database")
-@CrossOrigin(origins = "*", allowedHeaders = "*")
+/*@CrossOrigin(origins = "*", allowedHeaders = "*")*/
 public class DatabaseNavigatorController {
 
     @Autowired
