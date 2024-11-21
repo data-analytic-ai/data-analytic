@@ -34,8 +34,6 @@ import java.util.stream.Collectors;
 public class DatabaseConfiguration {
 
 
-
-
     @Bean
     public static PlatformTransactionManager transactionManager(DataSource dataSource) {
         return new JdbcTransactionManager(dataSource);

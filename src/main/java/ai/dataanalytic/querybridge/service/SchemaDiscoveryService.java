@@ -19,8 +19,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-@Service
 @Slf4j
+@Service
 public class SchemaDiscoveryService {
 
     /**
