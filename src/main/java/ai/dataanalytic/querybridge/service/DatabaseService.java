@@ -15,6 +15,7 @@ import java.util.Map;
  */
 @Service
 public interface DatabaseService {
+    ResponseEntity<String> disconnectDatabase(String userId, String connectionId);
     ResponseEntity<String> setDatabaseConnection(DatabaseConnectionRequest databaseConnectionRequest, HttpSession session);
     ResponseEntity<List<String>> listTables(HttpSession session, String connectionId);
     ResponseEntity<List<Map<String, Object>>> listColumns(String tableName, HttpSession session, String connectionId);

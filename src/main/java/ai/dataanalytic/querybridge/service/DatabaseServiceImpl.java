@@ -16,6 +16,7 @@ import org.springframework.jdbc.core.ColumnMapRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
+import javax.sql.DataSource;
 import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -41,12 +42,8 @@ public class DatabaseServiceImpl implements DatabaseService {
     @Autowired
     private ConnectionRepository connectionRepository;
 
-    private static final String SESSION_ATTRIBUTE_CONNECTION = "dbConnection";
-
     // Mapa para almacenar las conexiones por userId
-    private final Map<String, Map<String, JdbcTemplate>> userConnections = new ConcurrentHashMap<>();
-
-
+    private final Map<String, Map<String, DataSource>> userDataSources = new ConcurrentHashMap<>();
 
 
     @Override
@@ -57,37 +54,39 @@ public class DatabaseServiceImpl implements DatabaseService {
         }
 
         try {
-            // Create and test the database connection
-            JdbcTemplate jdbcTemplate = dynamicDataSourceManager.createAndTestConnection(databaseConnectionRequest);
-
             // Get the user ID from the session
             String userId = getUserIdFromSession(session);
-            log.info("User ID: {}", userId);
             if (userId == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authenticated");
             }
 
-            if (jdbcTemplate == null) {
-                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to connect to database");
-            }
-
-            // Get or create the user's connections map
-            Map<String, JdbcTemplate> connections = userConnections.computeIfAbsent(userId, k -> new ConcurrentHashMap<>());
-
-            // Store the JdbcTemplate with the provided connectionId
             String connectionId = databaseConnectionRequest.getConnectionId();
             if (connectionId == null || connectionId.isEmpty()) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Connection ID is required");
             }
-            connections.put(connectionId, jdbcTemplate);
 
-            // Store the connections map in the session
-            session.setAttribute("dbConnections", connections);
+            // Crear el DataSource
+            DataSource dataSource = dynamicDataSourceManager.createDataSource(databaseConnectionRequest);
+
+            // Probar la conexión
+            if (!dynamicDataSourceManager.testConnection(dataSource)) {
+                dynamicDataSourceManager.closeDataSource(dataSource);
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to connect to database");
+            }
+
+            // Almacenar el DataSource
+            Map<String, DataSource> dataSources = userDataSources.computeIfAbsent(userId, k -> new ConcurrentHashMap<>());
+            dataSources.put(connectionId, dataSource);
 
             // Guardar los detalles de la conexión en MongoDB
-            ConnectionEntity connectionEntity = new ConnectionEntity();
-            connectionEntity.setUserId(userId);
-            connectionEntity.setConnectionId(connectionId);
+            ConnectionEntity connectionEntity = connectionRepository.findByUserIdAndConnectionId(userId, connectionId);
+            if (connectionEntity == null) {
+                connectionEntity = new ConnectionEntity();
+                connectionEntity.setUserId(userId);
+                connectionEntity.setConnectionId(connectionId);
+            }
+
+            // Actualizar los campos
             connectionEntity.setDatabaseType(databaseConnectionRequest.getDatabaseType());
             connectionEntity.setHost(databaseConnectionRequest.getHost());
             connectionEntity.setPort(databaseConnectionRequest.getPort());
@@ -96,6 +95,7 @@ public class DatabaseServiceImpl implements DatabaseService {
             connectionEntity.setPassword(databaseConnectionRequest.getPassword()); // Considera cifrar
             connectionEntity.setSid(databaseConnectionRequest.getSid());
             connectionEntity.setInstance(databaseConnectionRequest.getInstance());
+            connectionEntity.setJdbcUrl(databaseConnectionRequest.getJdbcUrl());
 
             connectionRepository.save(connectionEntity);
 
@@ -210,6 +210,24 @@ public class DatabaseServiceImpl implements DatabaseService {
         }
     }
 
+    private DataSource createDataSourceFromConnectionEntity(ConnectionEntity connectionEntity) {
+        // Reconstruir DatabaseConnectionRequest
+        DatabaseConnectionRequest dbRequest = new DatabaseConnectionRequest();
+        dbRequest.setDatabaseType(connectionEntity.getDatabaseType());
+        dbRequest.setHost(connectionEntity.getHost());
+        dbRequest.setPort(connectionEntity.getPort());
+        dbRequest.setDatabaseName(connectionEntity.getDatabaseName());
+        dbRequest.setUserName(connectionEntity.getUserName());
+        dbRequest.setPassword(connectionEntity.getPassword()); // TODO: cifrar/descifrar la contraseña
+        dbRequest.setSid(connectionEntity.getSid());
+        dbRequest.setInstance(connectionEntity.getInstance());
+        dbRequest.setJdbcUrl(connectionEntity.getJdbcUrl());
+        dbRequest.setConnectionId(connectionEntity.getConnectionId());
+
+        // Crear y probar la conexión
+        return dynamicDataSourceManager.createDataSource(dbRequest);
+    }
+
 
     // Helper method to get JdbcTemplate from session
     public JdbcTemplate getJdbcTemplateFromSession(HttpSession session, String connectionId) {
@@ -217,36 +235,35 @@ public class DatabaseServiceImpl implements DatabaseService {
         if (userId == null) {
             return null;
         }
-        Map<String, JdbcTemplate> connections = userConnections.get(userId);
-        if (connections == null) {
-            connections = new ConcurrentHashMap<>();
-            userConnections.put(userId, connections);
-        }
-        JdbcTemplate jdbcTemplate = connections.get(connectionId);
-        if (jdbcTemplate == null) {
+        Map<String, DataSource> dataSources = userDataSources.computeIfAbsent(userId, k -> new ConcurrentHashMap<>());
+        DataSource dataSource = dataSources.get(connectionId);
+        if (dataSource == null) {
             // Intentar recuperar la conexión desde MongoDB
             ConnectionEntity connectionEntity = connectionRepository.findByUserIdAndConnectionId(userId, connectionId);
             if (connectionEntity != null) {
-                // Reconstruir DatabaseConnectionRequest
-                DatabaseConnectionRequest dbRequest = new DatabaseConnectionRequest();
-                dbRequest.setDatabaseType(connectionEntity.getDatabaseType());
-                dbRequest.setHost(connectionEntity.getHost());
-                dbRequest.setPort(connectionEntity.getPort());
-                dbRequest.setDatabaseName(connectionEntity.getDatabaseName());
-                dbRequest.setUserName(connectionEntity.getUserName());
-                dbRequest.setPassword(connectionEntity.getPassword()); //TODO:  cifrar/descifrar the password
-                dbRequest.setSid(connectionEntity.getSid());
-                dbRequest.setInstance(connectionEntity.getInstance());
-                dbRequest.setConnectionId(connectionId);
-
-                // Crear y probar la conexión
-                jdbcTemplate = dynamicDataSourceManager.createAndTestConnection(dbRequest);
-                if (jdbcTemplate != null) {
-                    connections.put(connectionId, jdbcTemplate);
+                dataSource = createDataSourceFromConnectionEntity(connectionEntity);
+                if (dataSource != null) {
+                    dataSources.put(connectionId, dataSource);
                 }
             }
         }
-        return jdbcTemplate;
+        if (dataSource != null) {
+            return new JdbcTemplate(dataSource);
+        } else {
+            return null;
+        }
+    }
+
+    public ResponseEntity<String> disconnectDatabase(String userId, String connectionId) {
+        Map<String, DataSource> dataSources = userDataSources.get(userId);
+        if (dataSources != null) {
+            DataSource dataSource = dataSources.remove(connectionId);
+            if (dataSource != null) {
+                dynamicDataSourceManager.closeDataSource(dataSource);
+                return ResponseEntity.ok("Disconnected successfully");
+            }
+        }
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Connection not found");
     }
 
 
@@ -261,13 +278,27 @@ public class DatabaseServiceImpl implements DatabaseService {
      * @return True if the credentials are valid, false otherwise.
      */
     private boolean validateCredentials(DatabaseConnectionRequest databaseConnectionRequest) {
-        return StringUtils.allFieldsPresent(
-                databaseConnectionRequest.getDatabaseName(),
-                databaseConnectionRequest.getHost(),
-                databaseConnectionRequest.getUserName(),
-                databaseConnectionRequest.getPassword()
-        );
+        boolean isJdbcUrlProvided = databaseConnectionRequest.getJdbcUrl() != null && !databaseConnectionRequest.getJdbcUrl().isEmpty();
+
+        if (isJdbcUrlProvided) {
+            // Validar que jdbcUrl, userName y password no sean nulos o vacíos
+            return StringUtils.allFieldsPresent(
+                    databaseConnectionRequest.getJdbcUrl(),
+                    databaseConnectionRequest.getUserName(),
+                    databaseConnectionRequest.getPassword()
+            );
+        } else {
+            // Validar que databaseName, host, userName y password no sean nulos o vacíos
+            return StringUtils.allFieldsPresent(
+                    databaseConnectionRequest.getDatabaseName(),
+                    databaseConnectionRequest.getHost(),
+                    String.valueOf(databaseConnectionRequest.getPort()),
+                    databaseConnectionRequest.getUserName(),
+                    databaseConnectionRequest.getPassword()
+            );
+        }
     }
+
 
     /**
      * Validates identifiers like table names to prevent SQL injection.
