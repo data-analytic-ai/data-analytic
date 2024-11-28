@@ -45,6 +45,17 @@ public class DatabaseNavigatorController {
         return databaseService.setDatabaseConnection(databaseConnectionRequest, session);
     }
 
+    @PostMapping("/disconnect/{connectionId}")
+    public ResponseEntity<String> disconnectDatabase(
+            @PathVariable("connectionId") String connectionId,
+            HttpSession session) {
+        String userId = databaseService.getUserIdFromSession(session);
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authenticated");
+        }
+        return databaseService.disconnectDatabase(userId, connectionId);
+    }
+
     /**
      * Lists the tables in the database.
      *
