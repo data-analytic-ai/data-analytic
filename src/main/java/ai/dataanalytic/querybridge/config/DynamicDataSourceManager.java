@@ -35,11 +35,21 @@ public class DynamicDataSourceManager {
      * @return JdbcTemplate if the connection is successful, null otherwise
      */
     public JdbcTemplate createAndTestConnection(DatabaseConnectionRequest credentials) {
+        String jdbcUrl;
+
+        if (credentials.getJdbcUrl() != null && !credentials.getJdbcUrl().isEmpty()) {
+            // Usar la URL JDBC proporcionada
+            jdbcUrl = credentials.getJdbcUrl();
+        } else {
+            // Construir la URL JDBC a partir de los campos granulares
+            jdbcUrl = buildJdbcUrl(credentials);
+        }
+
         try {
             DataSource dataSource = createDataSource(credentials);
             JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
 
-            if (testConnection(jdbcTemplate)) {
+            if (testConnection(dataSource)) {
                 return jdbcTemplate;
             } else {
                 closeDataSource(dataSource);
@@ -54,11 +64,12 @@ public class DynamicDataSourceManager {
     /**
      * Tests the connection using the provided JdbcTemplate.
      *
-     * @param jdbcTemplate the JdbcTemplate to test
+     * @param dataSource is the datasource  to test the connection Using JdbcTemplate
      * @return true if the connection is successful, false otherwise
      */
-    private boolean testConnection(JdbcTemplate jdbcTemplate) {
+    public boolean testConnection(DataSource dataSource) {
         try {
+            JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
             jdbcTemplate.queryForObject("SELECT 1", Integer.class);
             return true;
         } catch (Exception e) {
@@ -73,7 +84,7 @@ public class DynamicDataSourceManager {
      * @param credentials the database credentials
      * @return the created DataSource
      */
-    private DataSource createDataSource(DatabaseConnectionRequest credentials) {
+    public DataSource createDataSource(DatabaseConnectionRequest credentials) {
         HikariConfig hikariConfig = new HikariConfig();
 
         // Set the driver class name based on the database type
@@ -84,14 +95,20 @@ public class DynamicDataSourceManager {
         hikariConfig.setDriverClassName(driverClassName);
 
         // Build the JDBC URL based on the database type
-        String jdbcUrl = buildJdbcUrl(credentials);
+        String jdbcUrl;
+        if (credentials.getJdbcUrl() != null && !credentials.getJdbcUrl().isEmpty()) {
+            jdbcUrl = credentials.getJdbcUrl();
+        } else {
+            jdbcUrl = buildJdbcUrl(credentials);
+        }
+
         hikariConfig.setJdbcUrl(jdbcUrl);
 
         hikariConfig.setUsername(credentials.getUserName());
         hikariConfig.setPassword(credentials.getPassword());
 
         // Optional: Configure pool settings
-        hikariConfig.setMaximumPoolSize(1000);
+        hikariConfig.setMaximumPoolSize(10);
         hikariConfig.setConnectionTimeout(30000);
         hikariConfig.setIdleTimeout(30000);
 
@@ -130,7 +147,7 @@ public class DynamicDataSourceManager {
      *
      * @param dataSource the data source to close
      */
-    private void closeDataSource(DataSource dataSource) {
+    public void closeDataSource(DataSource dataSource) {
         if (dataSource instanceof HikariDataSource) {
             ((HikariDataSource) dataSource).close();
         }
