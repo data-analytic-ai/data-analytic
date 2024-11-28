@@ -23,4 +23,5 @@ public class ConnectionEntity {
     private String password; // TODO: cifrar password
     private String sid;
     private String instance;
+    private String jdbcUrl;
 }

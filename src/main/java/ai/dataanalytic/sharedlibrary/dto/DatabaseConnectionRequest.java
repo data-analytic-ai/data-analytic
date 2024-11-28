@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class DatabaseConnectionRequest {
+    private String jdbcUrl;
     private String databaseType;  // e.g., postgresql, mysql
     private String host;          // e.g., localhost
     private int port;             // e.g., 5432
