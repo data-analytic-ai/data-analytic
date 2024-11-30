@@ -1,14 +1,18 @@
 package ai.dataanalytic.databridge.controller;
 
 import ai.dataanalytic.databridge.dto.DataTransferRequest;
+import ai.dataanalytic.databridge.service.ConfigHolder;
 import ai.dataanalytic.databridge.service.ConnectionHolder;
+import ai.dataanalytic.querybridge.config.DynamicDataSourceManager;
 import ai.dataanalytic.querybridge.service.DatabaseService;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.batch.core.Job;
+import org.springframework.batch.core.JobExecution;
 import org.springframework.batch.core.JobParameters;
 import org.springframework.batch.core.JobParametersBuilder;
 import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -17,49 +21,40 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.UUID;
-
-@RestController
-@RequestMapping("/data/bridge")
+import java.util.UUID;@RestController
+@RequestMapping("/api/data-transfer")
 public class DataTransferController {
 
-    private final JobLauncher jobLauncher;
+    @Autowired
+    private JobLauncher jobLauncher;
 
-    private final DatabaseService databaseService;
+    @Autowired
+    @Qualifier("dataTransferJob")
+    private Job dataTransferJob;
 
+    @Autowired
+    private DynamicDataSourceManager dynamicDataSourceManager;
 
-    private final Job dataTransferJob;
-
-    public DataTransferController(JobLauncher jobLauncher, DatabaseService databaseService, Job dataTransferJob) {
-        this.jobLauncher = jobLauncher;
-        this.databaseService = databaseService;
-        this.dataTransferJob = dataTransferJob;
-    }
-
-    @PostMapping("/transfer")
-    public ResponseEntity<String> transferData(@RequestBody DataTransferRequest request, HttpSession session) {
+    @PostMapping("/start")
+    public ResponseEntity<String> startDataTransfer(@RequestBody DataTransferRequest config) {
         try {
-            // Retrieve JdbcTemplates
-            JdbcTemplate sourceJdbcTemplate = databaseService.getJdbcTemplateFromSession(session, request.getSourceConnectionId());
-            JdbcTemplate destinationJdbcTemplate = databaseService.getJdbcTemplateFromSession(session, request.getDestinationConnectionId());
-
-            if (sourceJdbcTemplate == null || destinationJdbcTemplate == null) {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Database connections not found");
-            }
-
-            // Store JdbcTemplates in a shared context
+            // Generar un jobId único
             String jobId = UUID.randomUUID().toString();
-            ConnectionHolder.storeJdbcTemplate(jobId, "source", sourceJdbcTemplate);
-            ConnectionHolder.storeJdbcTemplate(jobId, "destination", destinationJdbcTemplate);
 
+            // Almacenar la configuración en un mapa estático para acceder desde el Job
+            ConfigHolder.addConfig(jobId, config);
+
+            // Crear JobParameters
             JobParameters jobParameters = new JobParametersBuilder()
                     .addString("jobId", jobId)
-                    .addString("tableName", request.getTableName())
+                    .addString("tableName", config.getTableName())
+                    .addLong("time", System.currentTimeMillis())
                     .toJobParameters();
 
-            jobLauncher.run(dataTransferJob, jobParameters);
+            // Lanzar el trabajo
+            JobExecution jobExecution = jobLauncher.run(dataTransferJob, jobParameters);
 
-            return ResponseEntity.ok("Job started successfully");
+            return ResponseEntity.ok("Job started with ID: " + jobExecution.getId());
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error starting job: " + e.getMessage());
         }
