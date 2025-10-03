@@ -41,7 +41,11 @@ src/main/
 ### Running the Conversion
 Navigate to the script directory:
 ```
-cd path\to\src\main\python\data_conversion
+
+
+jocsa@nitro MINGW64 /c/FOR-DEVS/projects/repos/data-analytic (docker-database-migration)
+$ cd src/main/python/data_conversion
+
 ```
 
 Run the script:
