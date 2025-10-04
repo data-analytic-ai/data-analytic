@@ -1,0 +1,108 @@
+# Databases stack only.
+# This file defines SOURCE, TARGET, METADATA, and STATE services.
+# It relies on the default Compose network created when you run with both -f files.
+
+volumes:
+  pg_target_data:   # persistent data for TARGET (PostgreSQL)
+  mongo_data:       # persistent data for STATE (MongoDB)
+  oracle_data:      # persistent data for SOURCE (Oracle)
+  # pg_batch_data:  # keep commented for now; uncomment later to persist METADATA
+
+services:
+  # TARGET database (generic name = target-db). Today: PostgreSQL 15.
+  postgres-target:
+    image: postgres:15
+    container_name: postgres-target
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: data_analytic_target
+    ports:
+      - "5432:5432"  # host → container (optional; needed if you connect from host tools)
+    volumes:
+      - pg_target_data:/var/lib/postgresql/data
+      - ./schema/postgres-target:/docker-entrypoint-initdb.d:ro  # DDL at first start
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d data_analytic_target"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      default:
+        aliases: [target-db]   # other services can reach it as "target-db"
+
+  # METADATA database for Spring Batch (generic name = metadata-db). Today: PostgreSQL 15.
+  # Ephemeral by design now: no data volume attached.
+  postgres-batch:
+    image: postgres:15
+    container_name: postgres-batch
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: data_analytic_batch
+    ports:
+      - "5433:5432"  # optional host mapping for local inspection
+    # To persist later, uncomment:
+    # volumes:
+    #   - pg_batch_data:/var/lib/postgresql/data
+    volumes:
+      - ./schema/postgres-batch:/docker-entrypoint-initdb.d:ro  # optional; Batch can auto-create
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d data_analytic_batch"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      default:
+        aliases: [metadata-db]
+
+  # STATE store (generic name = state-store). Today: MongoDB 6.
+  # We’ll later store Payload CMS–compatible documents here.
+  mongo-storage:
+    image: mongo:6
+    container_name: mongo-storage
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: root
+      MONGO_INITDB_DATABASE: dataAnalytic
+    ports:
+      - "27017:27017"  # optional host mapping
+    volumes:
+      - mongo_data:/data/db
+      - ./schema/mongo:/docker-entrypoint-initdb.d:ro  # optional JS init scripts
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --username root --password root --authenticationDatabase admin --eval 'db.adminCommand(\"ping\")' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      default:
+        aliases: [state-store]
+
+  # SOURCE database (generic name = source-db). Today: Oracle XE 21c.
+  oracle-source:
+    image: gvenzl/oracle-xe:21-slim
+    container_name: oracle-source
+    restart: unless-stopped
+    environment:
+      ORACLE_PASSWORD: oracle          # SYSTEM password
+      APP_USER: DATAANALYTIC           # application user
+      APP_USER_PASSWORD: oracle
+      ORACLE_CHARACTERSET: AL32UTF8
+    ports:
+      - "1521:1521"  # SQL*Net
+      - "5500:5500"  # EM Express
+    volumes:
+      - oracle_data:/opt/oracle/oradata
+      - ./schema/oracle-source:/container-entrypoint-initdb.d:ro  # runs once at first start
+    healthcheck:
+      test: ["CMD-SHELL", "echo 'exit' | sqlplus -s system/oracle@//localhost:1521/XEPDB1 || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 15
+    networks:
+      default:
+        aliases: [source-db]

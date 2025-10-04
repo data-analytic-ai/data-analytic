@@ -1,27 +1,19 @@
-# Etapa 1: Construcción con Maven y JDK 17
-FROM maven:3.9.9-amazoncorretto-17 AS build
+# syntax=docker/dockerfile:1
 
+# ---- build ----
+FROM maven:3.9-eclipse-temurin-21 AS build
+WORKDIR /workspace
+COPY pom.xml .
+RUN mvn -q -B -DskipTests dependency:go-offline
+COPY src src
+# build AND produce a single artifact for next stage
+RUN mvn -q -B -DskipTests package && cp target/*jar app.jar
+
+# ---- runtime ----
+FROM eclipse-temurin:21-jre
 WORKDIR /app
-
-# Copia el código fuente al contenedor
-COPY . .
-
-# Construye el proyecto con Maven (asegúrate de que genere un único .jar en target/)
-RUN mvn clean package -DskipTests
-
-# Etapa 2: Imagen ligera para ejecución
-FROM amazoncorretto:17
-
-WORKDIR /app
-
-# Se Copia el JAR generado desde la etapa de construcción
-COPY --from=build /app/target/data-analytic-1.0.0.jar /app/data-analytic.jar
-
-# Expone el puerto en el que correrá la aplicación
+ENV SERVER_PORT=8081
+ENV JAVA_OPTS=""
+COPY --from=build /workspace/app.jar /app/app.jar
 EXPOSE 8081
-
-# Comando para ejecutar la aplicación
-#CMD ["java", "-jar", "/app/data-analytic.jar"]
-
-# Set the entrypoint to allow passing JVM options and environment variables
-ENTRYPOINT ["java", "-jar", "/app/data-analytic.jar"]
+ENTRYPOINT ["sh","-c","java $JAVA_OPTS -jar /app/app.jar --server.port=${SERVER_PORT}"]
