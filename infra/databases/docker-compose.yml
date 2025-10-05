@@ -74,7 +74,7 @@ services:
       - mongo_data:/data/db
       - ./schema/mongo:/docker-entrypoint-initdb.d:ro  # optional JS init scripts
     healthcheck:
-      test: ["CMD-SHELL", "mongosh --username root --password root --authenticationDatabase admin --eval 'db.adminCommand(\"ping\")' || exit 1"]
+      test: ["CMD-SHELL", "mongosh -u root -p password --authenticationDatabase admin --eval 'db.adminCommand(\"ping\")' || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 10

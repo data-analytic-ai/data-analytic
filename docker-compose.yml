@@ -26,7 +26,7 @@ services:
       BRIDGE_METADATA_USERNAME: postgres
       BRIDGE_METADATA_PASSWORD: postgres
 
-      BRIDGE_STATE_STORE_URI: mongodb://root:root@state-store:27017/dataAnalytic?authSource=admin
+      BRIDGE_STATE_STORE_URI: mongodb://root:password@state-store:27017/dataAnalytic?authSource=admin
 
       SERVER_PORT: "8081"
       JAVA_OPTS: ""
