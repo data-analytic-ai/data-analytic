@@ -42,6 +42,3 @@ services:
         condition: service_healthy
     ports:
       - "8081:8081"
-    volumes:
-      - ./amazon_categories.csv:/data/csv/amazon_categories.csv:ro
-      - ./amazon_products.csv:/data/csv/amazon_products.csv:ro
