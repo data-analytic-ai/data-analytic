@@ -1,0 +1,11 @@
+.git
+infra
+target
+**/*.iml
+**/.idea
+**/.DS_Store
+*.csv
+*.sqlite
+data/
+amazon_products.csv
+amazon_categories.csv

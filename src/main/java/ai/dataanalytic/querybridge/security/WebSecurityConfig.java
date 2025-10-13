@@ -1,12 +1,9 @@
 package ai.dataanalytic.querybridge.security;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -34,7 +31,7 @@ public class WebSecurityConfig {
 
     public WebSecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter, AuthEntryPointJwt authEntryPointJwt) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
-        this.authEntryPointJwt =  authEntryPointJwt;
+        this.authEntryPointJwt = authEntryPointJwt;
     }
 
     @Bean
@@ -48,22 +45,25 @@ public class WebSecurityConfig {
     }
 
 
-
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .cors(Customizer.withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)
-                .exceptionHandling(exception -> exception
-                        .authenticationEntryPoint(authEntryPointJwt))
-                .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(exception -> exception.authenticationEntryPoint(authEntryPointJwt))
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        // preflight
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        // public
                         .requestMatchers("/public/**").permitAll()
+                        // actuator health/info (no auth)
+                        .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()
+                        // app APIs
                         .requestMatchers("/query/bridge/database/**").authenticated()
-                        .anyRequest().authenticated())
+                        // everything else
+                        .anyRequest().authenticated()
+                )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
