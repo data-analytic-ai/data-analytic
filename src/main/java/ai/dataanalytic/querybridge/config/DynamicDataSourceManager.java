@@ -9,6 +9,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 import javax.sql.DataSource;
+import java.sql.SQLException;
 import java.util.Map;
 
 /**
@@ -24,7 +25,7 @@ public class DynamicDataSourceManager {
             "postgresql", "org.postgresql.Driver",
             "mysql", "com.mysql.cj.jdbc.Driver",
             "sqlserver", "com.microsoft.sqlserver.jdbc.SQLServerDriver",
-            "oracle", "oracle.jdbc.driver.OracleDriver",
+            "oracle", "oracle.jdbc.OracleDriver",
             "db2", "com.ibm.db2.jcc.DB2Driver"
     );
 
@@ -70,11 +71,36 @@ public class DynamicDataSourceManager {
     public boolean testConnection(DataSource dataSource) {
         try {
             JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
-            jdbcTemplate.queryForObject("SELECT 1", Integer.class);
+            String testQuery = getTestQuery(jdbcTemplate);
+            jdbcTemplate.queryForObject(testQuery, Integer.class);
             return true;
         } catch (Exception e) {
             log.error("Error testing connection", e);
             return false;
+        }
+    }
+
+    /**
+     * Gets the appropriate test query based on the database type.
+     *
+     * @param jdbcTemplate the JDBC template to determine database type
+     * @return the test query string
+     */
+    private String getTestQuery(JdbcTemplate jdbcTemplate) {
+        try {
+            // Try to get database product name from connection metadata
+            String databaseProductName = jdbcTemplate.getDataSource().getConnection()
+                    .getMetaData().getDatabaseProductName().toLowerCase();
+
+            return switch (databaseProductName) {
+                case "oracle" -> "SELECT 1 FROM DUAL";
+                case "mysql", "postgresql", "microsoft sql server" -> "SELECT 1";
+                default -> "SELECT 1";
+            };
+        } catch (SQLException e) {
+            // Fallback to generic query if metadata is not available
+            log.debug("Could not determine database type from metadata, using default query", e);
+            return "SELECT 1";
         }
     }
 

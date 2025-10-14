@@ -111,6 +111,13 @@
             <artifactId>mysql-connector-j</artifactId>
         </dependency>
 
+        <!-- Conector Oracle -->
+        <dependency>
+            <groupId>com.oracle.database.jdbc</groupId>
+            <artifactId>ojdbc11</artifactId>
+            <version>23.4.0.24.05</version>
+        </dependency>
+
         <!-- Conector MongoDB -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

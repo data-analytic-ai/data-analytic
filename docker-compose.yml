@@ -29,6 +29,7 @@ services:
       BRIDGE_STATE_STORE_URI: mongodb://root:password@state-store:27017/dataAnalytic?authSource=admin
 
       SERVER_PORT: "8081"
+      JWT_SECRET: "1e1vJSZP5aJvRoiveEmKVThBupn71guaJNuSgp7c="
       JAVA_OPTS: ""
       SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: "5"
     depends_on:
